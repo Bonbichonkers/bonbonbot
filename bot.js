@@ -60,10 +60,21 @@ const forward = args => {
 
 const downloadTiktok = (channel, url) => {
     downloadTiktokMeta(url, (meta, buffer) => {
-        channel.send(
-            meta.desc,
-            new Discord.Attachment(buffer, meta.video.id + ".mp4")
-        );
+        channel
+            .send(
+                meta.desc,
+                new Discord.Attachment(buffer, meta.video.id + ".mp4")
+            )
+            .catch(error => {
+                console.log("DISCORD SEND ERROR", meta);
+                downloadURL(meta.video.download_url, buf => {
+                    channel.send(
+                        meta.desc +
+                            " [Can not post 720p cuz server is not lvl2]",
+                        new Discord.Attachment(buf, meta.video.id + ".mp4")
+                    );
+                });
+            });
     });
 };
 

@@ -105,10 +105,10 @@ export const extractIdFromUrl = (url, onReady) => {
             .get(url)
             .then(response => {
                 const data = response.request.path;
-                console.log("url data", response);
-                const idx = data.indexOf(".html?u_code");
+                let idx = data.indexOf(".html?u_code");
+                if (idx < 0) idx = data.indexOf(".html?_d");
                 if (idx >= 0) {
-                    const result = data.slice(3, 3 + 19);
+                    const result = data.slice(3, 3 + 19).replace("?", "");
                     axios
                         .get(response.request.res.responseUrl, {
                             headers: {
@@ -139,6 +139,7 @@ export const extractIdFromUrl = (url, onReady) => {
         if (idxA >= 0) {
             result.userName = url.slice(idxA + 1, idx);
         }
+        result.videoId = result.videoId.replace("?", "");
         console.log("RESULT", result);
         onReady(result);
     }
@@ -205,7 +206,10 @@ export const randomPost = (collection, username, onReady) => {
 export const downloadURL = (url, onReady) => {
     axios
         .get(url, {
-            responseType: "arraybuffer"
+            responseType: "arraybuffer",
+            headers: {
+                "User-Agent": "tiktokapp"
+            }
         })
         .then(fr => {
             onReady(require("buffer").Buffer.from(fr.data, "binary"));
@@ -215,7 +219,7 @@ export const downloadURL = (url, onReady) => {
         });
 };
 
-const improveQuality = (meta, buf, onReady, count = 0) => {
+const improveQuality = (meta, buf, onReady, improveBitrate = 1, count = 0) => {
     if (count > 5) return;
     console.log("META", meta);
     if (!hdMode) return buf;
@@ -225,7 +229,7 @@ const improveQuality = (meta, buf, onReady, count = 0) => {
     //https://api2.musical.ly/aweme/v1/playwm/?video_id=${uri}&improve_bitrate=1`;
     //const url = `https://api.tiktokv.com/aweme/v1/playwm/?video_id=${uri}&line=0&ratio=default&media_type=4&vr_type=0`;
 
-    const url = `https://api2-16-h2.musical.ly/aweme/v1/play/?video_id=${uri}&ratio=default&improve_bitrate=1`;
+    const url = `https://api2-16-h2.musical.ly/aweme/v1/play/?video_id=${uri}&ratio=default&improve_bitrate=${improveBitrate}`;
     let headers = {
         responseType: "arraybuffer"
     };
@@ -236,7 +240,7 @@ const improveQuality = (meta, buf, onReady, count = 0) => {
         .then(function(response) {
             const iqr = response.request.res.responseUrl;
             if (!iqr) {
-                improveQuality(meta, buf, onReady, count + 1);
+                improveQuality(meta, buf, onReady, improveBitrate, count + 1);
                 return;
             }
             axios
@@ -250,7 +254,13 @@ const improveQuality = (meta, buf, onReady, count = 0) => {
                     );
                     if (ibuf && ibuf.length > 214) onReady(ibuf);
                     else {
-                        improveQuality(meta, buf, onReady, count + 1);
+                        improveQuality(
+                            meta,
+                            buf,
+                            onReady,
+                            improveBitrate,
+                            count + 1
+                        );
                     }
                 })
                 .catch(iqrError => {
@@ -262,14 +272,19 @@ const improveQuality = (meta, buf, onReady, count = 0) => {
         });
 };
 
-export const downloadTiktokMeta = (url, onReady) => {
+export const downloadTiktokMeta = (url, onReady, improveBitrate = 1) => {
     extractIdFromUrl(url, desc => {
         loadMetaInfo(desc.videoId, meta => {
             if (meta && meta.video && meta.video.download_url) {
                 if (hdMode) {
-                    improveQuality(meta, null, buffer => {
-                        onReady(meta, buffer);
-                    });
+                    improveQuality(
+                        meta,
+                        null,
+                        buffer => {
+                            onReady(meta, buffer);
+                        },
+                        improveBitrate
+                    );
                 } else {
                     axios
                         .get(meta.video.download_url, {
