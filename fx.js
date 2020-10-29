@@ -1,3 +1,4 @@
+const Discord = require("discord.js");
 const sharp = require("sharp");
 import { downloadURL } from "./tiktok";
 
@@ -45,7 +46,7 @@ export const lukoshko = (channel, url) => {
                                     console.log(err2, info2);
                                     channel.send(
                                         "",
-                                        new Discord.Attachment(
+                                        new Discord.MessageAttachment(
                                             data2,
                                             "lukoshko.png"
                                         )
